@@ -1,0 +1,152 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Metadata:
+  Generator: "former2"
+  Author: satoshi.iizuka@elastic.co
+
+Description: A sample CFn for Cognito user pool setups
+
+Parameters:
+  UserPoolName:
+    Type: String
+    Default: "userpool1"
+
+  UserPoolSubDomain:
+    Type: String
+    Default: "my-test-subdomain"
+
+  ElasticClientName:
+    Type: String
+    Default: "elasticsearch-service"
+
+  ElasticURLRoot:
+    Type: String
+    Default: https://cognito-auth-poc.kb.ap-northeast-1.aws.found.io:9243
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Ref UserPoolName
+      AutoVerifiedAttributes: 
+      - email
+      UsernameAttributes: 
+      - email
+      # MfaConfiguration: OFF
+      EmailConfiguration: 
+        EmailSendingAccount: COGNITO_DEFAULT
+      AdminCreateUserConfig: 
+        AllowAdminCreateUserOnly: true
+      AccountRecoverySetting: 
+        RecoveryMechanisms: 
+        - Priority: 1
+          Name: verified_email
+      VerificationMessageTemplate: 
+        DefaultEmailOption: CONFIRM_WITH_CODE
+      Policies: 
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 90
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: admin_only
+            Priority: 1
+      UsernameConfiguration: 
+        CaseSensitive: false
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref UserPoolSubDomain
+      UserPoolId: !Ref UserPool
+
+  UserPoolClientElastic:
+    Type: AWS::Cognito::UserPoolClient
+    Properties: 
+      ClientName: !Ref ElasticClientName
+      UserPoolId: !Ref UserPool
+      GenerateSecret: true
+      EnableTokenRevocation: true
+      EnablePropagateAdditionalUserContextData: false
+      PreventUserExistenceErrors: ENABLED
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: 
+        - code
+      AllowedOAuthScopes: 
+        - email
+        - openid
+        - phone
+        - profile
+      ExplicitAuthFlows: 
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs: 
+        - !Sub "${ElasticURLRoot}/api/security/oidc/callback"
+      LogoutURLs:
+        - !Sub "${ElasticURLRoot}/security/logged_out"
+
+  UserPoolUI:
+    Type: AWS::Cognito::UserPoolUICustomizationAttachment
+    DependsOn: UserPoolDomain
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientId: ALL
+
+  SampleGroup1:
+    Type: AWS::Cognito::UserPoolGroup
+    DependsOn: UserPool
+    Properties: 
+      Description: 'Sample Group 1'
+      GroupName: 'sample-group-1'
+      UserPoolId: !Ref UserPool
+
+  SampleUser1:
+    Type: AWS::Cognito::UserPoolUser
+    DependsOn: UserPool
+    Properties:
+      UserPoolId: !Ref UserPool
+      Username: 'sample1@sample.local'
+      UserAttributes: 
+        - Name: name
+          Value: 'sample1'
+        - Name: email
+          Value: 'sample1@sample.local'
+        - Name: email_verified
+          Value: true
+  
+  SampleUser1ToSampleGroup1:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    DependsOn:
+      - SampleGroup1
+      - SampleUser1
+    Properties: 
+      GroupName: !Ref SampleGroup1
+      Username: !Ref SampleUser1
+      UserPoolId: !Ref UserPool
+
+
+Outputs:
+  UserPoolId: 
+    Value: !Ref UserPool
+  UserPoolRegion:
+    Value: !Select [ 1, !Split [ ".", !GetAtt UserPool.ProviderName ] ]
+  UserPoolCognitoDomain:
+    Value: !Join 
+      - "." 
+      - - !Sub "https://${UserPoolDomain}"
+        - "auth"
+        - !Select [ 1, !Split [ ".", !GetAtt UserPool.ProviderName ] ]
+        - "amazoncognito.com"
+  UserPoolProviderURL:
+    Value: !GetAtt UserPool.ProviderURL
+  ElasticClientId: 
+    Value: !Ref UserPoolClientElastic
+  ElasticClientSecret:
+    Value: !GetAtt UserPoolClientElastic.ClientSecret
