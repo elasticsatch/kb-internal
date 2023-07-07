@@ -1,0 +1,27 @@
+# IMPORTANT:
+# Add the following value in Deployment > Security > Elasticsearch Keystore BEFORE YOU ADD ES CONFIG
+#  key: xpack.security.authc.realms.oidc.cognito-oidc.rp.client_secret
+#  value: Cognito > User pools > <pool> > App integration > App client list > <client> > App client information > Show client secret
+# 
+xpack.security.authc.realms:
+  oidc:
+    cognito-oidc:
+      order: 2
+      rp:
+        client_id: "um4u0jkrvoe53ml1sbn7kej60"  # Change the client ID
+        response_type: "code"
+        redirect_uri: "https://cognito-test-cluster.kb.ap-northeast-1.aws.found.io:9243/api/security/oidc/callback" # Change the ESS URL
+        requested_scopes:
+          - email
+          - openid
+      op:
+        issuer: "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_jTOYxGC3I" # Change the pool ID and region
+        jwkset_path: "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_jTOYxGC3I/.well-known/jwks.json" # Change the pool ID and region
+        authorization_endpoint: "https://my-sample-domain.auth.ap-northeast-1.amazoncognito.com/oauth2/authorize" # Change the domain
+        token_endpoint: "https://my-sample-domain.auth.ap-northeast-1.amazoncognito.com/oauth2/token" # Change the domain
+        endsession_endpoint: "https://my-sample-domain.auth.ap-northeast-1.amazoncognito.com/logout?client_id=5vm4i9m65ur79kcgambf2nbtji&logout_uri=https://cognito-test-cluster.kb.ap-northeast-1.aws.found.io:9243/security/logged_out" # Change the domain and parameters
+      claims:
+        principal: email
+        groups: cognito:groups
+
+

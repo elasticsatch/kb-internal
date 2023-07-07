@@ -1,0 +1,8 @@
+xpack.security.authc.providers:
+  oidc.oidc1:
+    order: 0
+    realm: cognito-oidc
+    description: "Log in with Cognito"
+  basic.basic1:
+    order: 1
+xpack.security.authc.selector.enabled: true
